@@ -3,11 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
+	"strings"
 )
 
-// Function to extract Chromium bookmarks (JSON format)
+// Function to extract Chromium bookmarks (STDOUT format)
 func extractChromiumBookmarks(bookmarksPath string) {
 	file, err := os.Open(bookmarksPath)
 	if err != nil {
@@ -59,4 +62,61 @@ func extractChromiumBookmarks(bookmarksPath string) {
 			extractBookmarksFromSection(section)
 		}
 	}
+}
+
+func findBookmarkFiles() ([]string, error) {
+	cmd := exec.Command("find", "/home", "-type", "f", "-path", "*/.config/*/Default/Bookmarks")
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to run find: %v", err)
+	}
+
+	// Split by line
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	return lines, nil
+}
+
+func parseBookmarks(path string) ([]Bookmark, error) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(data, &jsonData); err != nil {
+		return nil, err
+	}
+
+	roots := jsonData["roots"].(map[string]interface{})
+	var allBookmarks []Bookmark
+	for _, root := range []string{"bookmark_bar", "other", "synced"} {
+		if node, ok := roots[root].(map[string]interface{}); ok {
+			allBookmarks = append(allBookmarks, extractBookmarks(node, root)...)
+		}
+	}
+	return allBookmarks, nil
+}
+
+// extractBookmarks recursively walks children and tracks parent folder name
+func extractBookmarks(data map[string]interface{}, parent string) []Bookmark {
+	var results []Bookmark
+
+	if children, ok := data["children"].([]interface{}); ok {
+		for _, child := range children {
+			childMap := child.(map[string]interface{})
+			typ := childMap["type"].(string)
+			name := childMap["name"].(string)
+
+			if typ == "url" {
+				results = append(results, Bookmark{
+					Name:   name,
+					URL:    childMap["url"].(string),
+					Parent: parent,
+				})
+			} else if typ == "folder" {
+				results = append(results, extractBookmarks(childMap, name)...)
+			}
+		}
+	}
+	return results
 }

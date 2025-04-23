@@ -62,7 +62,6 @@ func extractFirefoxBookmarks(dbPath string) {
 	}
 	defer rows.Close()
 
-	fmt.Printf("🦊🔥 Extracted Firefox Bookmarks %s:\n", dbPath)
 	for rows.Next() {
 		var id, title, url, parentId string
 		err := rows.Scan(&id, &title, &url, &parentId)
