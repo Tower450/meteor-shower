@@ -124,7 +124,7 @@ func printBookmarkTree(tree map[string][]Bookmark, parent string, depth int) {
 	// Then, print actual bookmarks (those with URLs)
 	for _, b := range tree[parent] {
 		if b.URL != "" {
-			fmt.Printf("%s|-🌠  %s → %s\n", indent, b.Name, b.URL)
+			fmt.Printf("%s|-🌠 %s → %s\n", indent, b.Name, b.URL)
 		}
 	}
 }
