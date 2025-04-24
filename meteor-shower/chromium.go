@@ -76,7 +76,7 @@ func findBookmarkFiles() ([]string, error) {
 	return lines, nil
 }
 
-func parseBookmarks(path string) ([]Bookmark, error) {
+func extractBookmarks(path string) ([]Bookmark, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -91,14 +91,14 @@ func parseBookmarks(path string) ([]Bookmark, error) {
 	var allBookmarks []Bookmark
 	for _, root := range []string{"bookmark_bar", "other", "synced"} {
 		if node, ok := roots[root].(map[string]interface{}); ok {
-			allBookmarks = append(allBookmarks, extractBookmarks(node, root)...)
+			allBookmarks = append(allBookmarks, parseBookmarks(node, root)...)
 		}
 	}
 	return allBookmarks, nil
 }
 
-// extractBookmarks recursively walks children and tracks parent folder name
-func extractBookmarks(data map[string]interface{}, parent string) []Bookmark {
+// parseBookmarks recursively walks children and tracks parent folder name
+func parseBookmarks(data map[string]interface{}, parent string) []Bookmark {
 	var results []Bookmark
 
 	if children, ok := data["children"].([]interface{}); ok {
@@ -114,7 +114,7 @@ func extractBookmarks(data map[string]interface{}, parent string) []Bookmark {
 					Parent: parent,
 				})
 			} else if typ == "folder" {
-				results = append(results, extractBookmarks(childMap, name)...)
+				results = append(results, parseBookmarks(childMap, name)...)
 			}
 		}
 	}

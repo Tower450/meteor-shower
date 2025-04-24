@@ -39,11 +39,11 @@ func main() {
 	}
 
 	for _, path := range chromiumBookmarkFiles {
-		fmt.Printf("Extracting for profile: %s", path)
+		fmt.Printf("🌐 Extracted Chromium Bookmarks: %s\n", path)
 		// Extract Chrome bookmarks if the file exists
 		if fileExists(path) {
 			// extractChromiumBookmarks(chromeBookmarksPath) => RAW
-			bookmarks, err := parseBookmarks(path)
+			bookmarks, err := extractBookmarks(path)
 			if err != nil {
 				log.Fatalf("", err)
 			}
@@ -66,7 +66,7 @@ func main() {
 			// Recursively print starting from top
 			fmt.Println("|- bookmarks")
 			for k, v := range tree {
-				fmt.Printf("📁 %q has %d children\n", k, len(v))
+				fmt.Printf("📁 %q has %d children \n", k, len(v))
 				printBookmarkTree(tree, k, 1)
 			}
 		}
@@ -96,7 +96,28 @@ func main() {
 
 			// Extract Firefox bookmarks
 			fmt.Printf("🦊🔥 Extracted Firefox Bookmarks %s:\n", firefoxDBPath)
-			extractFirefoxBookmarks(tempDB)
+			// extractFirefoxBookmarks(tempDB) (RAW)
+			bookmarks := extractFirefoxBookmarks(tempDB)
+			// outputBookmarksJSON(bookmarks) => OUTPUT JSON
+
+			tree := make(map[string][]Bookmark)
+			for _, b := range bookmarks {
+				tree[b.Parent] = append(tree[b.Parent], b)
+			}
+
+			// Sort the bookmarks for each parent to ensure consistent output order
+			for _, children := range tree {
+				sort.SliceStable(children, func(i, j int) bool {
+					return children[i].Name < children[j].Name
+				})
+			}
+
+			// Recursively print starting from top
+			fmt.Println("|- bookmarks")
+			for k, v := range tree {
+				fmt.Printf("📁 %q has %d children\n", k, len(v))
+				printBookmarkTree(tree, k, 1)
+			}
 
 			// Clean up temporary database file
 			err = os.Remove(tempDB)

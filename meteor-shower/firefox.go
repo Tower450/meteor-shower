@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -32,12 +33,27 @@ func findFirefoxProfile() ([]string, error) {
 }
 
 // Function to query Firefox bookmarks from the copied SQLite DB
-func extractFirefoxBookmarks(dbPath string) {
+func extractFirefoxBookmarks(dbPath string) (bookmarks []Bookmark) {
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		log.Fatalf("Failed to open Firefox database: %v\n", err)
 	}
 	defer db.Close()
+
+	parentMap := make(map[int]string)
+	rows, err := db.Query(`SELECT id, title FROM moz_bookmarks`)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for rows.Next() {
+		var id int
+		var title sql.NullString
+		if err := rows.Scan(&id, &title); err != nil {
+			log.Fatal(err)
+		}
+		parentMap[id] = title.String
+	}
+	rows.Close()
 
 	query := `
 	SELECT
@@ -56,7 +72,7 @@ func extractFirefoxBookmarks(dbPath string) {
 		moz_bookmarks.dateAdded DESC;
 	`
 
-	rows, err := db.Query(query)
+	rows, err = db.Query(query)
 	if err != nil {
 		log.Fatalf("Failed to query Firefox bookmarks: %v\n", err)
 	}
@@ -71,10 +87,24 @@ func extractFirefoxBookmarks(dbPath string) {
 		if title == "" {
 			title = "[No Title]"
 		}
-		fmt.Printf("🌠 - %s, %s: %s  %s\n", id, title, url, parentId)
+
+		parent, err := strconv.Atoi(parentId)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		// fmt.Printf("🌠 - %s, %s: %s  %s\n", id, title, url, parentId)
+		bookmarks = append(bookmarks, Bookmark{
+			ID:     id,
+			Name:   title,
+			URL:    url,
+			Parent: parentMap[parent],
+		})
 	}
 
 	if err := rows.Err(); err != nil {
 		log.Fatalf("Error during Firefox row iteration: %v\n", err)
 	}
+
+	return bookmarks
 }
