@@ -9,17 +9,21 @@ Just printing bookmark through std for now.
 Planning on extracting into .json, .xml. .yaml formats.
 
 ## Go
+Run
 
 ```bash
 go get github.com/mattn/go-sqlite3
-go run extract_bookmark.go
+go run ./meteor-shower
 ```
 
+Build
 
-## Python
+```bash
+cd meteor-shower
 
-```python3
-chmod a+x extract_bookmark.py
-./extract_bookmark.py
+GOOS=linux GOARCH=amd64 go build -o bookmark-linux # linux
+
+GOOS=windows GOARCH=amd64 go build -o bookmark.exe # windows
+
+GOOS=darwin GOARCH=amd64 go build -o bookmark-macos
 ```
-
