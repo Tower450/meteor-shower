@@ -108,14 +108,19 @@ func findBookmarkFiles() ([]string, error) {
 			return nil, fmt.Errorf("failed to read C:\\Users: %v", err)
 		}
 		for _, user := range userDirs {
+			fmt.Println(user.Name())
 			if !user.IsDir() {
 				continue
 			}
 			home := filepath.Join(`C:\Users`, user.Name())
 			base := filepath.Join(home, `AppData\Local`)
 			candidates := []string{
+				"Chromium\\User Data\\Default\\Bookmarks",
 				"Google\\Chrome\\User Data\\Default\\Bookmarks",
 				"BraveSoftware\\Brave-Browser\\User Data\\Default\\Bookmarks",
+				"Microsoft\\Edge\\User Data\\Default\\Bookmarks",
+				"Opera Software\\Opera Stable\\Bookmarks",
+				"Vivaldi\\User Data\\Default\\Bookmarks",
 			}
 			for _, c := range candidates {
 				full := filepath.Join(base, c)
