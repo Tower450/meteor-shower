@@ -6,7 +6,7 @@ A simple bookmark extractor for firefox and chromium based browsers from all use
 
 Just printing bookmark through std for now.
 
-Planning on extracting into .json, .xml. .yaml formats.
+Planning on extracting into .json, .xml, .yaml formats.
 
 ## Go
 Run
