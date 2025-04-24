@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -65,15 +67,69 @@ func extractChromiumBookmarks(bookmarksPath string) {
 }
 
 func findBookmarkFiles() ([]string, error) {
-	cmd := exec.Command("find", "/home", "-type", "f", "-path", "*/.config/*/Default/Bookmarks")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to run find: %v", err)
+	var paths []string
+
+	switch runtime.GOOS {
+	case "linux":
+		cmd := exec.Command("find", "/home", "-type", "f", "-path", "*/.config/*/Default/Bookmarks")
+		output, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("linux find failed: %v", err)
+		}
+		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+		paths = append(paths, lines...)
+
+	case "darwin":
+		userDirs, err := os.ReadDir("/Users")
+		if err != nil {
+			return nil, fmt.Errorf("failed to read /Users: %v", err)
+		}
+		for _, user := range userDirs {
+			if !user.IsDir() {
+				continue
+			}
+			home := filepath.Join("/Users", user.Name())
+			base := filepath.Join(home, "Library", "Application Support")
+			candidates := []string{
+				"Google/Chrome/Default/Bookmarks",
+				"BraveSoftware/Brave-Browser/Default/Bookmarks",
+			}
+			for _, c := range candidates {
+				full := filepath.Join(base, c)
+				if _, err := os.Stat(full); err == nil {
+					paths = append(paths, full)
+				}
+			}
+		}
+
+	case "windows":
+		userDirs, err := os.ReadDir(`C:\Users`)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read C:\\Users: %v", err)
+		}
+		for _, user := range userDirs {
+			if !user.IsDir() {
+				continue
+			}
+			home := filepath.Join(`C:\Users`, user.Name())
+			base := filepath.Join(home, `AppData\Local`)
+			candidates := []string{
+				"Google\\Chrome\\User Data\\Default\\Bookmarks",
+				"BraveSoftware\\Brave-Browser\\User Data\\Default\\Bookmarks",
+			}
+			for _, c := range candidates {
+				full := filepath.Join(base, c)
+				if _, err := os.Stat(full); err == nil {
+					paths = append(paths, full)
+				}
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 
-	// Split by line
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	return lines, nil
+	return paths, nil
 }
 
 func extractBookmarks(path string) ([]Bookmark, error) {

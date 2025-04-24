@@ -4,32 +4,86 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 )
 
 // Function to find Firefox profile folder dynamically
 func findFirefoxProfile() ([]string, error) {
-	// Run the `find` command to search for profile directories containing places.sqlite
-	cmd := exec.Command("find", "/home", "-name", "*.default-release", "-o", "-name", "*.default", "-type", "d")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to find Firefox profile: %v", err)
+	var profiles []string
+
+	switch runtime.GOOS {
+	case "linux":
+		// Uses `find` to scan /home for profile folders
+		cmd := exec.Command("find", "/home", "-type", "d",
+			"-name", "*.default-release", "-o", "-name", "*.default")
+		output, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("failed to find Firefox profiles (Linux): %v", err)
+		}
+		lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+		profiles = append(profiles, lines...)
+
+	case "darwin":
+		// Scan /Users for Firefox profiles
+		userDirs, err := os.ReadDir("/Users")
+		if err != nil {
+			return nil, fmt.Errorf("failed to read /Users: %v", err)
+		}
+		for _, user := range userDirs {
+			if !user.IsDir() {
+				continue
+			}
+			mozPath := filepath.Join("/Users", user.Name(), "Library", "Application Support", "Firefox", "Profiles")
+			dirs, err := os.ReadDir(mozPath)
+			if err != nil {
+				continue // User might not have Firefox installed
+			}
+			for _, d := range dirs {
+				if d.IsDir() && (strings.HasSuffix(d.Name(), ".default-release") || strings.HasSuffix(d.Name(), ".default")) {
+					profiles = append(profiles, filepath.Join(mozPath, d.Name()))
+				}
+			}
+		}
+
+	case "windows":
+		// Scan C:\Users\*\AppData\Roaming for Firefox profiles
+		userDirs, err := os.ReadDir(`C:\Users`)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read C:\\Users: %v", err)
+		}
+		for _, user := range userDirs {
+			if !user.IsDir() {
+				continue
+			}
+			mozPath := filepath.Join(`C:\Users`, user.Name(), `AppData\Roaming\Mozilla\Firefox\Profiles`)
+			dirs, err := os.ReadDir(mozPath)
+			if err != nil {
+				continue
+			}
+			for _, d := range dirs {
+				if d.IsDir() && (strings.HasSuffix(d.Name(), ".default-release") || strings.HasSuffix(d.Name(), ".default")) {
+					profiles = append(profiles, filepath.Join(mozPath, d.Name()))
+				}
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 
-	profilePaths := strings.Split(string(output), "\n")
-
-	// Filter out any empty lines
-	var nonEmptyPaths []string
-	for _, path := range profilePaths {
-		if path != "" {
-			nonEmptyPaths = append(nonEmptyPaths, path)
+	// Filter out empty results
+	var nonEmpty []string
+	for _, p := range profiles {
+		if strings.TrimSpace(p) != "" {
+			nonEmpty = append(nonEmpty, p)
 		}
 	}
-
-	// Return the list of profile paths
-	return nonEmptyPaths, nil
+	return nonEmpty, nil
 }
 
 // Function to query Firefox bookmarks from the copied SQLite DB
