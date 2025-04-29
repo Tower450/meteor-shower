@@ -147,7 +147,10 @@ func extractFirefoxBookmarks(dbPath string) (bookmarks []Bookmark) {
 			fmt.Println("Error:", err)
 			return
 		}
-		// fmt.Printf("🌠 - %s, %s: %s  %s\n", id, title, url, parentId)
+
+		if *outputFlat {
+			fmt.Printf("🌠 - %s, %s: %s  %s\n", id, title, url, parentId)
+		}
 		bookmarks = append(bookmarks, Bookmark{
 			ID:     id,
 			Name:   title,

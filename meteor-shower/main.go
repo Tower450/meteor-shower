@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,11 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Import the SQLite driver using a blank identifier
+)
+
+var (
+	outputFlat = flag.Bool("flat", false, "Output raw flat list of found bookmarks")
+	outputJSON = flag.Bool("json", false, "Output bookmarks in JSON format")
 )
 
 func printBanner() {
@@ -30,6 +36,7 @@ func printBanner() {
 }
 
 func main() {
+	flag.Parse()
 	printBanner()
 
 	/** CHROME **/
@@ -42,12 +49,20 @@ func main() {
 		fmt.Printf("🌐 Extracted Chromium Bookmarks: %s\n", path)
 		// Extract Chrome bookmarks if the file exists
 		if fileExists(path) {
-			// extractChromiumBookmarks(chromeBookmarksPath) => RAW
+			if *outputFlat {
+				extractChromiumBookmarks(path)
+				continue
+			}
+
 			bookmarks, err := extractBookmarks(path)
 			if err != nil {
 				log.Fatalf("", err)
 			}
-			// outputBookmarksJSON(bookmarks) => OUTPUT JSON
+
+			if *outputJSON {
+				outputBookmarksJSON(bookmarks)
+				continue
+			}
 
 			// Build the tree: key = parent, value = children
 			tree := make(map[string][]Bookmark)
@@ -96,9 +111,16 @@ func main() {
 
 			// Extract Firefox bookmarks
 			fmt.Printf("🦊🔥 Extracted Firefox Bookmarks %s:\n", firefoxDBPath)
-			// extractFirefoxBookmarks(tempDB) (RAW)
+			if *outputFlat {
+				extractFirefoxBookmarks(tempDB)
+				continue
+			}
+
 			bookmarks := extractFirefoxBookmarks(tempDB)
-			// outputBookmarksJSON(bookmarks) => OUTPUT JSON
+			if *outputJSON {
+				outputBookmarksJSON(bookmarks)
+				continue
+			}
 
 			tree := make(map[string][]Bookmark)
 			for _, b := range bookmarks {
